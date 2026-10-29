@@ -1,0 +1,516 @@
+{
+  "name": "AI Sales Proposal Generator - Post Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-sales-proposal",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1080,
+        0
+      ],
+      "id": "4da0dd76-aa56-4ae4-8494-c33f9b6d5544",
+      "name": "Webhook - Lead Trigger",
+      "webhookId": "12166ded-455b-4ce2-80cc-e1e2426f7cbe"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst b = $json.body ?? $json;\n\nconst clean = (v) => v === undefined || v === null ? '' : String(v).trim();\n\nconst payload = {\n  client_name: clean(b.client_name || b.clientName || b.name),\n  company_name: clean(b.company_name || b.companyName || b.company),\n  client_email: clean(b.client_email || b.clientEmail || b.email),\n  service: clean(b.service || b.offer || b.product),\n  requirements: clean(b.requirements || b.project_requirements || b.problem || b.description),\n  deliverables: clean(b.deliverables || b.scope),\n  timeline: clean(b.timeline || b.delivery_time),\n  price: clean(b.price || b.budget || b.amount),\n  currency: clean(b.currency || 'USD'),\n  payment_terms: clean(b.payment_terms || b.paymentTerms),\n  support_terms: clean(b.support_terms || b.supportTerms),\n  validity: clean(b.validity || b.proposal_validity),\n  seller_name: clean(b.seller_name || b.sellerName || 'WebDecoders'),\n  telegram_chat_id: clean(b.telegram_chat_id || b.telegramChatId || b.chat_id)\n};\n\nconst errors = [];\nif (!payload.client_name) errors.push('client_name is required');\nif (!payload.service) errors.push('service is required');\nif (!payload.requirements) errors.push('requirements are required');\nif (!payload.price) errors.push('price is required');\nif (!payload.timeline) errors.push('timeline is required');\nif (!payload.telegram_chat_id) errors.push('telegram_chat_id is required');\n\nif (payload.client_email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(payload.client_email)) {\n  errors.push('client_email is invalid');\n}\n\nreturn [{json:{...payload, valid: errors.length === 0, errors}}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -860,
+        0
+      ],
+      "id": "b01e7d0a-9baa-43ad-8d76-9054644e1c8d",
+      "name": "Normalize Lead Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "12597841-97cb-45a1-bbd0-a1fcaa15d461",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "8fe23eee-345e-4ec1-b4f1-bc69b596238e",
+      "name": "Validate Lead Data"
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a senior B2B sales proposal writer.\n\nCreate a professional sales proposal using ONLY the supplied client data.\n\nRULES:\n- Never invent client facts, pricing, timelines, guarantees, case studies, or deliverables.\n- Keep the language confident, clear, commercially persuasive, and human.\n- Do not use hype or fake claims.\n- If an optional detail is empty, omit that section naturally.\n- Keep pricing exactly as supplied.\n- Keep timeline exactly as supplied.\n- Clearly separate scope, deliverables, pricing, payment terms, support terms, and next steps.\n\nOUTPUT FORMAT:\nReturn only the finished proposal text.\n\nUse these sections where relevant:\nPROPOSAL TITLE\nPrepared For\nPrepared By\nDate\nExecutive Summary\nUnderstanding of Client Requirements\nProposed Solution\nScope of Work\nDeliverables\nTimeline\nInvestment\nPayment Terms\nSupport / Revision Terms\nProposal Validity\nNext Steps\nAcceptance\n\nMake the proposal suitable for a professional Google Doc."
+            },
+            {
+              "role": "user",
+              "content": "=Create the sales proposal from this data:\n\nClient Name: {{ $('Normalize Lead Data').item.json.client_name }}\nClient Company: {{ $('Normalize Lead Data').item.json.company_name }}\nClient Email: {{ $('Normalize Lead Data').item.json.client_email }}\nService / Offer: {{ $('Normalize Lead Data').item.json.service }}\nRequirements: {{ $('Normalize Lead Data').item.json.requirements }}\nDeliverables: {{ $('Normalize Lead Data').item.json.deliverables }}\nTimeline: {{ $('Normalize Lead Data').item.json.timeline }}\nPrice: {{ $('Normalize Lead Data').item.json.price }} {{ $('Normalize Lead Data').item.json.currency }}\nPayment Terms: {{ $('Normalize Lead Data').item.json.payment_terms }}\nSupport Terms: {{ $('Normalize Lead Data').item.json.support_terms }}\nProposal Validity: {{ $('Normalize Lead Data').item.json.validity }}\nPrepared By: {{ $('Normalize Lead Data').item.json.seller_name }}"
+            }
+          ]
+        },
+        "simplifyOutput": true,
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 2600
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -380,
+        -100
+      ],
+      "id": "d5ab98cf-ba17-418a-9e2b-5451b04496b3",
+      "name": "OpenAI - Generate Proposal",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $json;\nlet proposal = '';\n\nif (raw.message?.content) proposal = raw.message.content;\nelse if (typeof raw.content === 'string') proposal = raw.content;\nelse if (typeof raw.text === 'string') proposal = raw.text;\nelse if (Array.isArray(raw) && raw[0]?.message?.content) proposal = raw[0].message.content;\n\nproposal = String(proposal || '').trim();\n\nif (!proposal) {\n  throw new Error('OpenAI returned no proposal text');\n}\n\nreturn [{\n  json: {\n    proposal,\n    document_title: `Sales Proposal - ${$('Normalize Lead Data').item.json.client_name}${$('Normalize Lead Data').item.json.company_name ? ' - ' + $('Normalize Lead Data').item.json.company_name : ''}`\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        -100
+      ],
+      "id": "55850712-1005-44ab-98f4-4718b5338617",
+      "name": "Prepare Proposal Document"
+    },
+    {
+      "parameters": {
+        "title": "={{ $json.document_title }}",
+        "folderId": "default"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -100
+      ],
+      "id": "cd2bfa75-b9ea-4e42-a054-f088e87984b5",
+      "name": "Google Docs - Create Proposal",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.documentId || $json.id || $json.document?.documentId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Prepare Proposal Document').item.json.proposal }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        360,
+        -100
+      ],
+      "id": "26acd65a-b02f-4453-a132-78b67677b4e3",
+      "name": "Google Docs - Write Proposal",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst docId =\n  $json.documentId ||\n  $json.id ||\n  $json.document?.documentId ||\n  $('Google Docs - Create Proposal').item.json.documentId ||\n  $('Google Docs - Create Proposal').item.json.id ||\n  $('Google Docs - Create Proposal').item.json.document?.documentId ||\n  '';\n\nif (!docId) throw new Error('Google Docs document ID missing');\n\nreturn [{\n  json: {\n    document_id: docId,\n    proposal_url: `https://docs.google.com/document/d/${docId}/edit`,\n    telegram_message:\n      `Proposal ready for ${$('Normalize Lead Data').item.json.client_name}` +\n      `${$('Normalize Lead Data').item.json.company_name ? ' (' + $('Normalize Lead Data').item.json.company_name + ')' : ''}` +\n      `\\n\\n${`https://docs.google.com/document/d/${docId}/edit`}`\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        -100
+      ],
+      "id": "b6368974-5ccd-4ef4-aa06-b5744273cc79",
+      "name": "Prepare Proposal Link"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Normalize Lead Data').item.json.telegram_chat_id }}",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        840,
+        -100
+      ],
+      "id": "abff93b4-3378-47ac-af12-b8bbac9069c6",
+      "name": "Telegram - Send Proposal",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {ok:true,status:'proposal_created',client:$('Normalize Lead Data').item.json.client_name,proposal_url:$('Prepare Proposal Link').item.json.proposal_url} }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1080,
+        -100
+      ],
+      "id": "a0f28a68-84d5-43c7-a4cf-dccaf5599f8c",
+      "name": "Webhook Response - Success"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Normalize Lead Data').item.json.telegram_chat_id || 'PASTE_ADMIN_TELEGRAM_CHAT_ID' }}",
+        "text": "={{ 'Proposal request rejected.\\nErrors: ' + $('Normalize Lead Data').item.json.errors.join(', ') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -380,
+        220
+      ],
+      "id": "ac6d46f6-a026-4d01-933b-beaf083c2bcf",
+      "name": "Telegram - Input Error Alert",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {ok:false,error:'invalid_input',details:$('Normalize Lead Data').item.json.errors} }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -120,
+        220
+      ],
+      "id": "c3128953-e3a2-45c0-9da9-e3593dca2bc7",
+      "name": "Webhook Response - Bad Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bdcf1742-b9af-43bd-82cb-0704573bcecb",
+              "name": "error_message",
+              "value": "={{ $json.error?.message || $json.message || 'Unknown workflow error' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        620,
+        220
+      ],
+      "id": "bb6971fd-80ae-4409-a154-49b75df5ec9d",
+      "name": "Build System Error"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Normalize Lead Data').item.json.telegram_chat_id || 'PASTE_ADMIN_TELEGRAM_CHAT_ID' }}",
+        "text": "={{ 'AI Sales Proposal Generator failed.\\nClient: ' + ($('Normalize Lead Data').item.json.client_name || 'Unknown') + '\\nError: ' + $json.error_message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        840,
+        220
+      ],
+      "id": "52bf6e6f-9675-4952-9644-1b5f7612a814",
+      "name": "Telegram - System Error Alert",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {ok:false,error:'proposal_generation_failed'} }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1080,
+        220
+      ],
+      "id": "26f9dc4d-0d4d-4c05-bf65-fda6c8547ad8",
+      "name": "Webhook Response - System Error"
+    },
+    {
+      "parameters": {
+        "width": 2160,
+        "height": 240,
+        "content": "# AI Sales Proposal Generator — Post Ready\n\n**Native nodes only — no HTTP Request nodes**\n\nConnect:\n- OpenAI credential → `OpenAI - Generate Proposal`\n- Google Docs OAuth2 → both Google Docs nodes\n- Telegram Bot → both Telegram alert/send nodes\n\nWebhook body requires:\n`client_name`, `service`, `requirements`, `timeline`, `price`, `telegram_chat_id`\n\nOptional:\n`company_name`, `client_email`, `deliverables`, `currency`, `payment_terms`, `support_terms`, `validity`, `seller_name`\n\nFlow:\nWebhook → Validate → OpenAI Message a model → Google Docs Create → Google Docs Write → Telegram → Success\n\nInvalid data and runtime failures have separate Telegram + webhook error branches."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1080,
+        -420
+      ],
+      "id": "70ce7d77-356b-4c71-9a49-24f5ccf44838",
+      "name": "SETUP - Connect Credentials"
+    }
+  ],
+  "connections": {
+    "Webhook - Lead Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Lead Data": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram - Input Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Input Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response - Bad Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Proposal": {
+      "main": [
+        [
+          {
+            "node": "Prepare Proposal Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Proposal Document": {
+      "main": [
+        [
+          {
+            "node": "Google Docs - Create Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Docs - Create Proposal": {
+      "main": [
+        [
+          {
+            "node": "Google Docs - Write Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Docs - Write Proposal": {
+      "main": [
+        [
+          {
+            "node": "Prepare Proposal Link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Proposal Link": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Send Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Send Proposal": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response - Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build System Error": {
+      "main": [
+        [
+          {
+            "node": "Telegram - System Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - System Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response - System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 300
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
