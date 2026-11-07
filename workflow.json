@@ -15,8 +15,7 @@
         0
       ],
       "id": "4da0dd76-aa56-4ae4-8494-c33f9b6d5544",
-      "name": "Webhook - Lead Trigger",
-      "webhookId": "12166ded-455b-4ce2-80cc-e1e2426f7cbe"
+      "name": "Webhook - Lead Trigger"
     },
     {
       "parameters": {
